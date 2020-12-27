@@ -88,6 +88,7 @@ allocproc(void)
 
 found:
   p->state = EMBRYO;
+  p->traced = T_UNTRACE;
   p->pid = nextpid++;
 
   release(&ptable.lock);
