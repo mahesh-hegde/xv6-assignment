@@ -16,3 +16,13 @@ we have a test program trd which just runs some syscalls to confirm.
 
 We can also enable or disable tracing from shell itself. `trace` command enables syscall printing for any command invoked from shell. `untrace` disables it.
 
+#### To see changes from original xv6 code:
+
+`git diff eeb7b415dbcb12cc362d0783e41c3d1f44066b17 .`
+
+(where the long checksum indicates last commit)
+
+I have committed all changes at once because commit history is noise.
+
+#### Bugs
+If you find any bug or unhandled edge case, fill an issue.
