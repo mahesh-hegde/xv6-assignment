@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "x86.h"
 #include "syscall.h"
+#include "trace.h"
 
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
@@ -104,6 +105,15 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 
+// Procedure for trace system call, this runs in kernel
+int sys_trace() {
+	int n;
+	argint(0, &n);
+	struct proc *curproc = myproc();
+	curproc->traced = (n & T_TRACE) ? n : 0;
+	return 0;
+}
+
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -126,17 +136,72 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_trace]   sys_trace,
+};
+
+static char *syscall_names[] = {
+[SYS_fork]    "fork",
+[SYS_exit]    "exit",
+[SYS_wait]    "wait",
+[SYS_pipe]    "pipe",
+[SYS_read]    "read",
+[SYS_kill]    "kill",
+[SYS_exec]    "exec",
+[SYS_fstat]   "fstat",
+[SYS_chdir]   "chdir",
+[SYS_dup]     "dup",
+[SYS_getpid]  "getpid",
+[SYS_sbrk]    "sbrk",
+[SYS_sleep]   "sleep",
+[SYS_uptime]  "uptime",
+[SYS_open]    "open",
+[SYS_write]   "write",
+[SYS_mknod]   "mknod",
+[SYS_unlink]  "unlink",
+[SYS_link]    "link",
+[SYS_mkdir]   "mkdir",
+[SYS_close]   "close",
+[SYS_trace]   "trace",
 };
 
 void
 syscall(void)
 {
-  int num;
+  int num, i;
   struct proc *curproc = myproc();
+  int is_traced = (curproc->traced & T_TRACE);
+  char procname[16];
+
+  // copy process name
+  for(i=0; curproc->name[i] != 0; i++) {
+    procname[i] = curproc->name[i];
+  }
+  procname[i] = curproc->name[i];
 
   num = curproc->tf->eax;
+  // if syscall is exit(), we will never get back to printing phase
+  // so print it here only
+  // In case of exec(), we may get back here
+  // But process memory image has changed
+  // Thus no meaning to return value
+  // In these cases we don't want to print return value
+  if((num == SYS_exit || num == SYS_exec) && is_traced) {
+    cprintf("\e[35mTRACE: pid = %d | process name = %s | syscall = %s\e[0m\n",
+        curproc->pid,
+	procname,
+	syscall_names[num]);
+  }
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     curproc->tf->eax = syscalls[num]();
+    if (is_traced && num != SYS_exec) {
+      // * Add colored output to make it distinct from normal output
+      // * We use single printf to avoid race conditions jumbling output
+      cprintf("\e[35mTRACE: pid = %d | process name = %s | syscall = %s | return val = %d\e[0m\n",
+          curproc->pid,
+	  procname,
+	  syscall_names[num],
+	  curproc->tf->eax);
+    }
   } else {
     cprintf("%d %s: unknown sys call %d\n",
             curproc->pid, curproc->name, num);

@@ -3,6 +3,7 @@
 #include "types.h"
 #include "user.h"
 #include "fcntl.h"
+#include "trace.h"
 
 // Parsed command representation
 #define EXEC  1
@@ -12,6 +13,24 @@
 #define BACK  5
 
 #define MAXARGS 10
+
+int tracing = 0;
+
+char trace_cmd[] = "trace\n";
+char untrace_cmd[] = "untrace\n";
+
+// used to compare strings
+int streq(char *a, char *b) {
+  while(1) {
+    if (*a != *b) {
+      return 0;
+    }
+    // Apparently commands end with '\n'
+    if (*a == '\n') return 1;
+    a++;
+    b++;
+  }
+}
 
 struct cmd {
   int type;
@@ -75,6 +94,7 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit();
+    if (tracing) trace(T_TRACE | T_ONFORK); // set tracing on
     exec(ecmd->argv[0], ecmd->argv);
     printf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
@@ -156,7 +176,7 @@ main(void)
   }
 
   // Read and run input commands.
-  while(getcmd(buf, sizeof(buf)) >= 0){
+  while(getcmd(buf, sizeof(buf)) >= 0) {
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       // Chdir must be called by the parent, not the child.
       buf[strlen(buf)-1] = 0;  // chop \n
@@ -164,8 +184,17 @@ main(void)
         printf(2, "cannot cd %s\n", buf+3);
       continue;
     }
-    if(fork1() == 0)
+    if (streq(buf, trace_cmd)) {
+      tracing = 1;
+      continue;
+    }
+    if (streq(buf, untrace_cmd)) {
+      tracing = 0;
+      continue;
+    }
+    if(fork1() == 0) {
       runcmd(parsecmd(buf));
+    }
     wait();
   }
   exit();
