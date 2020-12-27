@@ -20,9 +20,9 @@ We can also enable or disable tracing from shell itself. `trace` command enables
 
 `git diff eeb7b415dbcb12cc362d0783e41c3d1f44066b17 .`
 
-(where the long checksum indicates last commit)
+(here the long checksum indicates last commit in xv6 original code, you can see the log by running `git log`)
 
-I have committed all changes at once because commit history is noise.
+I have committed all changes at once because commit history was noise.
 
 #### Bugs
 If you find any bug or unhandled edge case, fill an issue.
