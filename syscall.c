@@ -181,11 +181,8 @@ syscall(void)
   num = curproc->tf->eax;
   // if syscall is exit(), we will never get back to printing phase
   // so print it here only
-  // In case of exec(), we may get back here
-  // But process memory image has changed
-  // Thus no meaning to return value
-  // In these cases we don't want to print return value
-  if((num == SYS_exit || num == SYS_exec) && is_traced) {
+  // In this cases we don't want to print return value
+  if(num == SYS_exit && is_traced) {
     cprintf("\e[35mTRACE: pid = %d | process name = %s | syscall = %s\e[0m\n",
         curproc->pid,
 	procname,
@@ -193,14 +190,16 @@ syscall(void)
   }
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     curproc->tf->eax = syscalls[num]();
-    if (is_traced && num != SYS_exec) {
+    if (is_traced) {
       // * Add colored output to make it distinct from normal output
       // * We use single printf to avoid race conditions jumbling output
-      cprintf("\e[35mTRACE: pid = %d | process name = %s | syscall = %s | return val = %d\e[0m\n",
-          curproc->pid,
-	  procname,
-	  syscall_names[num],
-	  curproc->tf->eax);
+      cprintf((num == SYS_exec && curproc->tf->eax == 0) ?
+        "\e[35mTRACE: pid = %d | process name = %s | syscall = %s\e[0m\n" :
+        "\e[35mTRACE: pid = %d | process name = %s | syscall = %s | return val = %d\e[0m\n",
+        curproc->pid,
+	procname,
+	syscall_names[num],
+	curproc->tf->eax);
     }
   } else {
     cprintf("%d %s: unknown sys call %d\n",
